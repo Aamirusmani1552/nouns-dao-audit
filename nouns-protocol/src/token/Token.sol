@@ -181,6 +181,7 @@ contract Token is IToken, VersionedContract, UUPS, Ownable, ReentrancyGuard, ERC
 
                     // Update the base token id
                     baseTokenId = (baseTokenId + schedule) % 100;
+                    console2.log("tokenId %s", baseTokenId);
                 }
             }
 

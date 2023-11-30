@@ -86,7 +86,7 @@ contract Integrations is NounsBuilderTest {
 
         // setting up the founder params
         if (numOfFounders == 1) {
-            percents[0] = 1;
+            percents[0] = 2;
         } else {
             // max percent = 99
             percents[0] = 10;
@@ -117,7 +117,7 @@ contract Integrations is NounsBuilderTest {
             "ipfs://Qmew7TdyGnj6YRUjQR68sUJN3239MYXRD8uxowxF6rGK8j",
             "https://nouns.build",
             "http://localhost:5000/render",
-            200, // _reservedUntilTokenId: this was zero before
+            100, // _reservedUntilTokenId: this was zero before
             address(0)
         );
     }
