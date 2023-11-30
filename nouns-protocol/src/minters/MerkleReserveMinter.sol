@@ -183,6 +183,7 @@ contract MerkleReserveMinter {
 
     function _getTotalFeesForMint(uint256 pricePerToken, uint256 quantity) internal pure returns (uint256) {
         // If pricePerToken is 0 the mint has no Builder DAO fee
+        // @audit should this fee be incurred for every token minted or just once per mint?
         return pricePerToken > 0 ? quantity * (pricePerToken + BUILDER_DAO_FEE) : 0;
     }
 
@@ -190,7 +191,7 @@ contract MerkleReserveMinter {
         uint256 builderFee = quantity * BUILDER_DAO_FEE;
         uint256 value = msg.value;
 
-        (, , address treasury, ) = manager.getAddresses(tokenContract);
+        (,, address treasury,) = manager.getAddresses(tokenContract);
         address builderRecipient = manager.builderRewardsRecipient();
 
         // Pay out fees to the Builder DAO
@@ -198,7 +199,7 @@ contract MerkleReserveMinter {
 
         // Pay out remaining funds to the treasury
         if (value > builderFee) {
-            (bool treasurySuccess, ) = treasury.call{ value: value - builderFee }("");
+            (bool treasurySuccess,) = treasury.call{ value: value - builderFee }("");
 
             // Revert if treasury cannot accept funds
             if (!treasurySuccess) {

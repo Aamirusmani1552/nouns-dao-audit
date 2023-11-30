@@ -4,9 +4,11 @@ pragma solidity 0.8.16;
 import { NounsBuilderTest } from "./utils/NounsBuilderTest.sol";
 
 import { IManager, Manager } from "../src/manager/Manager.sol";
+import { ERC1967Proxy } from "../src/lib/proxy/ERC1967Proxy.sol";
 
 import { MockImpl } from "./utils/mocks/MockImpl.sol";
 import { MetadataRenderer } from "../src/token/metadata/MetadataRenderer.sol";
+import { console2 } from "forge-std/console2.sol";
 
 contract ManagerTest is NounsBuilderTest {
     MockImpl internal mockImpl;
@@ -151,9 +153,24 @@ contract ManagerTest is NounsBuilderTest {
 
     function test_SetNewRenderer() public {
         deployMock();
+        console2.log(manager.owner());
 
         vm.startPrank(founder);
         manager.setMetadataRenderer(address(token), metadataRendererImpl, tokenParams.initStrings);
+        vm.stopPrank();
+    }
+
+    function test_ManagerContractsInitializationCanBeFrontRunned() public {
+        Manager manager2 =
+        new Manager(makeAddr("token"),makeAddr("metadata"), makeAddr("auction"), makeAddr("treasury"), makeAddr("governor"), makeAddr("builderRewardRecipient"));
+
+        ERC1967Proxy managerProxy2 = new ERC1967Proxy(address(manager2), "");
+
+        address attacker = address(makeAddr("attacker"));
+
+        // attacker frontruns the initialization of the manager contracts
+        vm.startPrank(attacker);
+        Manager(address(managerProxy2)).initialize(attacker);
         vm.stopPrank();
     }
 }

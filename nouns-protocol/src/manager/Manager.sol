@@ -48,6 +48,7 @@ contract Manager is IManager, VersionedContract, UUPS, Ownable, ManagerStorageV1
     ///                          CONSTRUCTOR                     ///
     ///                                                          ///
 
+    // @audit don't forget to ckeck the openzeppelin contracts version issue
     constructor(
         address _tokenImpl,
         address _metadataImpl,
@@ -62,6 +63,8 @@ contract Manager is IManager, VersionedContract, UUPS, Ownable, ManagerStorageV1
         treasuryImpl = _treasuryImpl;
         governorImpl = _governorImpl;
         builderRewardsRecipient = _builderRewardsRecipient;
+
+        // @audit is it required to enable disableInitializer()?
     }
 
     ///                                                          ///
@@ -70,6 +73,7 @@ contract Manager is IManager, VersionedContract, UUPS, Ownable, ManagerStorageV1
 
     /// @notice Initializes ownership of the manager contract
     /// @param _newOwner The owner address to set (will be transferred to the Builder DAO once its deployed)
+    // @audit can it be frontrun?
     function initialize(address _newOwner) external initializer {
         // Ensure an owner is specified
         if (_newOwner == address(0)) revert ADDRESS_ZERO();
@@ -92,16 +96,7 @@ contract Manager is IManager, VersionedContract, UUPS, Ownable, ManagerStorageV1
         TokenParams calldata _tokenParams,
         AuctionParams calldata _auctionParams,
         GovParams calldata _govParams
-    )
-        external
-        returns (
-            address token,
-            address metadata,
-            address auction,
-            address treasury,
-            address governor
-        )
-    {
+    ) external returns (address token, address metadata, address auction, address treasury, address governor) {
         // Used to store the address of the first (or only) founder
         // This founder is responsible for adding token artwork and launching the first auction -- they're also free to transfer this responsiblity
         address founder;
@@ -169,11 +164,7 @@ contract Manager is IManager, VersionedContract, UUPS, Ownable, ManagerStorageV1
     /// @notice Set a new metadata renderer
     /// @param _newRendererImpl new renderer address to use
     /// @param _setupRenderer data to setup new renderer with
-    function setMetadataRenderer(
-        address _token,
-        address _newRendererImpl,
-        bytes memory _setupRenderer
-    ) external returns (address metadata) {
+    function setMetadataRenderer(address _token, address _newRendererImpl, bytes memory _setupRenderer) external returns (address metadata) {
         if (msg.sender != IOwnable(_token).owner()) {
             revert ONLY_TOKEN_OWNER();
         }
@@ -200,16 +191,7 @@ contract Manager is IManager, VersionedContract, UUPS, Ownable, ManagerStorageV1
     /// @return auction Auction deployed address
     /// @return treasury Treasury deployed address
     /// @return governor Governor deployed address
-    function getAddresses(address _token)
-        public
-        view
-        returns (
-            address metadata,
-            address auction,
-            address treasury,
-            address governor
-        )
-    {
+    function getAddresses(address _token) public view returns (address metadata, address auction, address treasury, address governor) {
         DAOAddresses storage addresses = daoAddressesByToken[_token];
 
         metadata = addresses.metadata;
@@ -264,25 +246,23 @@ contract Manager is IManager, VersionedContract, UUPS, Ownable, ManagerStorageV1
     /// @return Contract versions if found, empty string if not.
     function getDAOVersions(address token) external view returns (DAOVersionInfo memory) {
         (address metadata, address auction, address treasury, address governor) = getAddresses(token);
-        return
-            DAOVersionInfo({
-                token: _safeGetVersion(token),
-                metadata: _safeGetVersion(metadata),
-                auction: _safeGetVersion(auction),
-                treasury: _safeGetVersion(treasury),
-                governor: _safeGetVersion(governor)
-            });
+        return DAOVersionInfo({
+            token: _safeGetVersion(token),
+            metadata: _safeGetVersion(metadata),
+            auction: _safeGetVersion(auction),
+            treasury: _safeGetVersion(treasury),
+            governor: _safeGetVersion(governor)
+        });
     }
 
     function getLatestVersions() external view returns (DAOVersionInfo memory) {
-        return
-            DAOVersionInfo({
-                token: _safeGetVersion(tokenImpl),
-                metadata: _safeGetVersion(metadataImpl),
-                auction: _safeGetVersion(auctionImpl),
-                treasury: _safeGetVersion(treasuryImpl),
-                governor: _safeGetVersion(governorImpl)
-            });
+        return DAOVersionInfo({
+            token: _safeGetVersion(tokenImpl),
+            metadata: _safeGetVersion(metadataImpl),
+            auction: _safeGetVersion(auctionImpl),
+            treasury: _safeGetVersion(treasuryImpl),
+            governor: _safeGetVersion(governorImpl)
+        });
     }
 
     ///                                                          ///
@@ -292,5 +272,5 @@ contract Manager is IManager, VersionedContract, UUPS, Ownable, ManagerStorageV1
     /// @notice Ensures the caller is authorized to upgrade the contract
     /// @dev This function is called in `upgradeTo` & `upgradeToAndCall`
     /// @param _newImpl The new implementation address
-    function _authorizeUpgrade(address _newImpl) internal override onlyOwner {}
+    function _authorizeUpgrade(address _newImpl) internal override onlyOwner { }
 }

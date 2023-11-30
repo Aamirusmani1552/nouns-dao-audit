@@ -13,6 +13,7 @@ import { IBaseMetadata } from "./metadata/interfaces/IBaseMetadata.sol";
 import { IManager } from "../manager/IManager.sol";
 import { IAuction } from "../auction/IAuction.sol";
 import { IToken } from "./IToken.sol";
+import { console2 } from "forge-std/console2.sol";
 import { VersionedContract } from "../VersionedContract.sol";
 
 /// @title Token
@@ -54,6 +55,7 @@ contract Token is IToken, VersionedContract, UUPS, Ownable, ReentrancyGuard, ERC
     ///                                                          ///
 
     /// @param _manager The contract upgrade manager address
+    // @auditor deployed contract through proxy will not be able to call constructor
     constructor(address _manager) payable initializer {
         manager = IManager(_manager);
     }
@@ -92,7 +94,7 @@ contract Token is IToken, VersionedContract, UUPS, Ownable, ReentrancyGuard, ERC
         _addFounders(_founders, _reservedUntilTokenId);
 
         // Decode the token name and symbol
-        (string memory _name, string memory _symbol, , , , ) = abi.decode(_initStrings, (string, string, string, string, string, string));
+        (string memory _name, string memory _symbol,,,,) = abi.decode(_initStrings, (string, string, string, string, string, string));
 
         // Initialize the ERC-721 token
         __ERC721_init(_name, _symbol);
@@ -117,6 +119,11 @@ contract Token is IToken, VersionedContract, UUPS, Ownable, ReentrancyGuard, ERC
     /// @notice Called upon initialization to add founders and compute their vesting allocations
     /// @dev We do this by reserving an mapping of [0-100] token indices, such that if a new token mint ID % 100 is reserved, it's sent to the appropriate founder.
     /// @param _founders The list of DAO founders
+    //     struct FounderParams {
+    //     address wallet;
+    //     uint256 ownershipPct;
+    //     uint256 vestExpiry; // timestamp when vesting expires
+    // }
     function _addFounders(IManager.FounderParams[] calldata _founders, uint256 reservedUntilTokenId) internal {
         // Used to store the total percent ownership among the founders
         uint256 totalOwnership;
@@ -130,6 +137,7 @@ contract Token is IToken, VersionedContract, UUPS, Ownable, ReentrancyGuard, ERC
                 uint256 founderPct = _founders[i].ownershipPct;
 
                 // Continue if no ownership is specified
+                // @audit what if founder pct is 0 but founder is there. it would not be added into founders mapping
                 if (founderPct == 0) {
                     continue;
                 }
@@ -165,6 +173,7 @@ contract Token is IToken, VersionedContract, UUPS, Ownable, ReentrancyGuard, ERC
                     // Get the available token id
                     baseTokenId = _getNextTokenId(baseTokenId);
 
+                    console2.log(baseTokenId);
                     // Store the founder as the recipient
                     tokenRecipient[baseTokenId] = newFounder;
 
@@ -210,6 +219,7 @@ contract Token is IToken, VersionedContract, UUPS, Ownable, ReentrancyGuard, ERC
     /// @notice Mints tokens from the reserve to the recipient
     function mintFromReserveTo(address recipient, uint256 tokenId) external nonReentrant onlyMinter {
         // Token must be reserved
+        // @audit why it reverts on = reservedUntilTokenId?
         if (tokenId >= reservedUntilTokenId) revert TOKEN_NOT_RESERVED();
 
         // Mint the token without vesting (reserved tokens do not count towards founders vesting)
@@ -219,7 +229,7 @@ contract Token is IToken, VersionedContract, UUPS, Ownable, ReentrancyGuard, ERC
     /// @notice Mints the specified amount of tokens to the recipient and handles founder vesting
     function mintBatchTo(uint256 amount, address recipient) external nonReentrant onlyAuctionOrMinter returns (uint256[] memory tokenIds) {
         tokenIds = new uint256[](amount);
-        for (uint256 i = 0; i < amount; ) {
+        for (uint256 i = 0; i < amount;) {
             tokenIds[i] = _mintWithVesting(recipient);
             unchecked {
                 ++i;
@@ -260,6 +270,7 @@ contract Token is IToken, VersionedContract, UUPS, Ownable, ReentrancyGuard, ERC
 
     /// @dev Checks if a given token is for a founder and mints accordingly
     /// @param _tokenId The ERC-721 token id
+    // @audit does Auction is valid ERC-721 receiver?
     function _isForFounder(uint256 _tokenId) private returns (bool) {
         // Get the base token id
         uint256 baseTokenId = _tokenId % 100;
@@ -271,11 +282,13 @@ contract Token is IToken, VersionedContract, UUPS, Ownable, ReentrancyGuard, ERC
             // Else if the founder is still vesting:
         } else if (block.timestamp < tokenRecipient[baseTokenId].vestExpiry) {
             // Mint the token to the founder
+            // @audit will founder be able to mint unlimited tokens?
             _mint(tokenRecipient[baseTokenId].wallet, _tokenId);
 
             return true;
 
             // Else the founder has finished vesting:
+            // @audit what the point of doing this if it has been already minted?
         } else {
             // Remove them from future lookups
             delete tokenRecipient[baseTokenId];
@@ -372,6 +385,7 @@ contract Token is IToken, VersionedContract, UUPS, Ownable, ReentrancyGuard, ERC
 
     /// @notice Update the list of allocation owners
     /// @param newFounders the full list of founders
+    // @audit can this be used to change the ownership of token?
     function updateFounders(IManager.FounderParams[] calldata newFounders) external onlyOwner {
         // Cache the number of founders
         uint256 numFounders = settings.numFounders;

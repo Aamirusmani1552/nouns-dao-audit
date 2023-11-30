@@ -67,13 +67,11 @@ contract Auction is IAuction, VersionedContract, UUPS, Ownable, ReentrancyGuard,
     /// @param _manager The contract upgrade manager address
     /// @param _rewardsManager The protocol rewards manager address
     /// @param _weth The address of WETH
-    constructor(
-        address _manager,
-        address _rewardsManager,
-        address _weth,
-        uint16 _builderRewardsBPS,
-        uint16 _referralRewardsBPS
-    ) payable initializer {
+    // @audit is it safe to use that?
+    constructor(address _manager, address _rewardsManager, address _weth, uint16 _builderRewardsBPS, uint16 _referralRewardsBPS)
+        payable
+        initializer
+    {
         manager = Manager(_manager);
         rewardsManager = IProtocolRewards(_rewardsManager);
         WETH = _weth;
@@ -236,11 +234,13 @@ contract Auction is IAuction, VersionedContract, UUPS, Ownable, ReentrancyGuard,
 
     /// @notice Settles the current auction and creates the next one
     function settleCurrentAndCreateNewAuction() external nonReentrant whenNotPaused {
+        // @audit would we be able to call create auction if settle auction reverted?
         _settleAuction();
         _createAuction();
     }
 
     /// @dev Settles the current auction
+    // @audit can first auction be settled?
     function _settleAuction() private {
         // Get a copy of the current auction
         Auction memory _auction = auction;
@@ -277,6 +277,7 @@ contract Auction is IAuction, VersionedContract, UUPS, Ownable, ReentrancyGuard,
             }
 
             // Transfer the token to the highest bidder
+            // @audit use safeTransferFrom
             token.transferFrom(address(this), _auction.highestBidder, _auction.tokenId);
 
             // Else no bid was placed:
@@ -366,6 +367,7 @@ contract Auction is IAuction, VersionedContract, UUPS, Ownable, ReentrancyGuard,
     }
 
     /// @notice Settles the latest auction when the contract is paused
+    // @audit if this is called
     function settleAuction() external nonReentrant whenPaused {
         _settleAuction();
     }
@@ -462,11 +464,11 @@ contract Auction is IAuction, VersionedContract, UUPS, Ownable, ReentrancyGuard,
     /// @param _currentBidRefferal The referral for the current bid
     /// @param _finalBidAmount The final bid amount
     /// @param _founderRewardBps The reward to be paid to the founder in BPS
-    function _computeTotalRewards(
-        address _currentBidRefferal,
-        uint256 _finalBidAmount,
-        uint256 _founderRewardBps
-    ) internal view returns (RewardSplits memory split) {
+    function _computeTotalRewards(address _currentBidRefferal, uint256 _finalBidAmount, uint256 _founderRewardBps)
+        internal
+        view
+        returns (RewardSplits memory split)
+    {
         // Get global builder recipient from manager
         address builderRecipient = manager.builderRewardsRecipient();
 
