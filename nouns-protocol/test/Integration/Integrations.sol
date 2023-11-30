@@ -78,6 +78,21 @@ contract Integrations is NounsBuilderTest {
         assertEq(token.getFounders().length, 1);
     }
 
+    function test_startingTheAuctionWillMintTokenIdAssignedToFounder() public {
+        // setting up everything
+        deployMock();
+
+        // getting the number of founders info
+        uint256 foundersAdded = token.totalFounders();
+
+        // checking the number of founders. should be 1
+        assertEq(numOfFounders, foundersAdded);
+
+        // starting the auction
+        vm.prank(token.owner());
+        auction.unpause();
+    }
+
     function setMockFounderParams() internal override {
         require(numOfFounders == 1 || numOfFounders == 10, "invalid number of founders");
         address[] memory wallets = new address[](numOfFounders);
